@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Data & rahasia — JANGAN diunggah ke GitHub
+vps/data/
+*.db
+.env
+
+# OS
+.DS_Store
+Thumbs.db

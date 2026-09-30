@@ -1,0 +1,30 @@
+# MediaMTX di VPS: menerima stream dari laptop, dashboard membaca via WebRTC/HLS
+logLevel: info
+rtsp: yes
+rtspAddress: :8554
+webrtc: yes
+webrtcAddress: :8889
+hls: yes
+hlsAddress: :8888
+api: no
+
+authInternalUsers:
+  # laptop boleh publish (ganti password!)
+  - user: laptop
+    pass: GANTI_PASSWORD_PUBLISH
+    ips: []
+    permissions:
+      - action: publish
+        path: cctv
+  # siapa saja boleh melihat (akses dibatasi VPN/firewall UGM)
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
+        path: cctv
+      - action: playback
+        path: cctv
+
+paths:
+  cctv:

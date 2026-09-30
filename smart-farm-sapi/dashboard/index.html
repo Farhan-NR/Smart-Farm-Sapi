@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Smart Farm Sapi — Dashboard</title>
+<style>
+:root{
+  --pine:#1F3A2E; --pine-dark:#152A21; --pine-light:#2C4F3E;
+  --bg:#EEF3EE; --panel:#FFFFFF; --line:#D6E0D8;
+  --hay:#C98A1F; --hay-bg:#FBF0DA;
+  --brick:#A63D2F; --brick-bg:#F8E2DE;
+  --steel:#3F6E92; --grass:#3F7D3F;
+  --text:#1B2622; --text-mute:#5B6B62;
+  --radius-s:4px; --radius-m:8px;
+  font-size:16px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+  padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0);}
+h1,h2,h3,.serif{font-family:Georgia,"Iowan Old Style","Times New Roman",serif}
+button{font-family:inherit;cursor:pointer}
+.tabular{font-variant-numeric:tabular-nums}
+:focus-visible{outline:3px solid var(--steel);outline-offset:2px}
+a{color:var(--steel)}
+
+/* ===== LOGIN ===== */
+#loginScreen{display:none;min-height:100vh;align-items:center;justify-content:center;background:var(--pine);}
+#loginScreen.show{display:flex}
+.login-box{background:var(--panel);padding:32px;border-radius:var(--radius-m);width:min(360px,90vw);}
+.login-box h1{margin:0 0 4px;font-size:1.4rem;color:var(--pine-dark)}
+.login-box p{margin:0 0 20px;color:var(--text-mute);font-size:.9rem}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:.85rem;margin-bottom:4px;color:var(--text-mute)}
+.field input{width:100%;padding:10px;border:1px solid var(--line);border-radius:var(--radius-s);font-size:1rem}
+.btn-primary{background:var(--pine);color:#fff;border:none;padding:11px 16px;border-radius:var(--radius-s);font-size:1rem;width:100%}
+.btn-primary:hover{background:var(--pine-light)}
+.err-msg{background:var(--brick-bg);color:var(--brick);padding:8px 10px;border-radius:var(--radius-s);font-size:.85rem;margin-bottom:12px;display:none}
+.err-msg.show{display:block}
+
+/* ===== APP SHELL ===== */
+#app{display:none;min-height:100vh}
+#app.show{display:flex;flex-direction:column}
+header{background:var(--pine);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:1.1rem;margin:0;font-weight:600}
+.conn{display:flex;align-items:center;gap:6px;font-size:.8rem;margin-left:auto}
+.dot{width:9px;height:9px;border-radius:50%;background:#8a9a8a}
+.conn.on .dot{background:#6fbf6f}
+.conn.retry .dot{background:var(--hay)}
+.conn.off .dot{background:var(--brick)}
+.updated{font-size:.75rem;color:#c9d6cc}
+.logout{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:6px 12px;border-radius:var(--radius-s);font-size:.8rem}
+
+.layout{display:flex;flex:1;min-height:0}
+nav.side{background:var(--pine-dark);width:190px;flex-shrink:0;padding:10px 0;display:flex;flex-direction:column}
+nav.side button{background:none;border:none;color:#cfe0d3;text-align:left;padding:12px 18px;font-size:.9rem;border-left:3px solid transparent}
+nav.side button.active{background:rgba(255,255,255,.06);color:#fff;border-left-color:var(--grass)}
+nav.side button:hover{color:#fff}
+
+main{flex:1;padding:18px;overflow:auto;min-width:0}
+.view{display:none}
+.view.active{display:block}
+@media(prefers-reduced-motion:no-preference){.view.active{animation:fade .18s ease}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+.section-title{font-size:1.15rem;margin:0 0 12px;color:var(--pine-dark)}
+.empty{color:var(--text-mute);font-size:.9rem;padding:18px;border:1px dashed var(--line);border-radius:var(--radius-m);background:var(--panel);text-align:center}
+
+/* Live view */
+.live-grid{display:grid;grid-template-columns:1fr 300px;gap:16px}
+@media(max-width:880px){.live-grid{grid-template-columns:1fr}}
+.video-wrap{position:relative;background:#0e1a14;border-radius:var(--radius-m);overflow:hidden;aspect-ratio:16/9}
+.video-wrap video,.video-wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+.video-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#cfe0d3;font-size:.9rem;text-align:center;padding:20px}
+.herd-strip{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.herd-item{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-s);padding:8px 12px;font-size:.82rem;min-width:110px}
+.herd-item b{display:block;font-size:1.3rem}
+.side-panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-m);padding:12px}
+.side-panel h3{margin:0 0 8px;font-size:.95rem}
+.cow-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:.85rem}
+.cow-row:last-child{border-bottom:none}
+.tag{padding:2px 8px;border-radius:10px;font-size:.75rem;color:#fff}
+.tag.berdiri{background:var(--grass)}
+.tag.duduk{background:var(--steel)}
+
+/* Statistik */
+.stat-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:880px){.stat-grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-m);padding:14px}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--text-mute);font-weight:600;font-size:.78rem}
+.status-badge{padding:2px 8px;border-radius:10px;font-size:.75rem}
+.status-normal{background:#e2eee0;color:var(--grass)}
+.status-pantau{background:var(--hay-bg);color:var(--hay)}
+.status-stres{background:var(--brick-bg);color:var(--brick)}
+.table-wrap{overflow-x:auto}
+
+/* Riwayat */
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.filters input,.filters select{padding:8px;border:1px solid var(--line);border-radius:var(--radius-s);font-size:.85rem}
+.thumb{width:52px;height:38px;object-fit:cover;border-radius:4px;cursor:pointer;border:1px solid var(--line)}
+.pager{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:.85rem}
+.pager button{border:1px solid var(--line);background:#fff;padding:6px 10px;border-radius:var(--radius-s)}
+.pager button:disabled{opacity:.4;cursor:default}
+
+/* Alert */
+.alert-row{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:var(--radius-m);background:var(--panel);margin-bottom:8px;cursor:pointer;text-align:left;width:100%}
+.alert-row.unread{border-left:4px solid var(--hay)}
+.lv{padding:2px 9px;border-radius:10px;font-size:.72rem;flex-shrink:0}
+.lv-info{background:#e2e8ee;color:var(--steel)}
+.lv-waspada{background:var(--hay-bg);color:var(--hay)}
+.lv-kritis{background:var(--brick-bg);color:var(--brick)}
+.alert-txt{flex:1;font-size:.87rem}
+.alert-txt small{display:block;color:var(--text-mute);margin-top:2px}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(15,25,20,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal-bg.show{display:flex}
+.modal{background:#fff;border-radius:var(--radius-m);max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:20px}
+.modal img{width:100%;border-radius:var(--radius-s);margin-bottom:12px;background:var(--bg)}
+.modal h3{margin:0 0 10px}
+.modal dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.87rem;margin:0 0 14px}
+.modal dt{color:var(--text-mute)}
+.modal .btn-row{display:flex;gap:10px;justify-content:flex-end}
+.btn-ghost{background:none;border:1px solid var(--line);padding:9px 14px;border-radius:var(--radius-s)}
+.btn-ack{background:var(--pine);color:#fff;border:none;padding:9px 14px;border-radius:var(--radius-s)}
+
+/* Bottom nav for small screens */
+@media(max-width:700px){
+  nav.side{display:none}
+  .layout{flex-direction:column}
+  nav.bottom{display:flex;position:sticky;bottom:0;background:var(--pine-dark);padding:6px env(safe-area-inset-bottom,0) 6px 0;justify-content:space-around}
+  nav.bottom button{background:none;border:none;color:#cfe0d3;font-size:.72rem;padding:6px 4px;flex:1}
+  nav.bottom button.active{color:#fff;border-top:2px solid var(--grass)}
+}
+@media(min-width:701px){nav.bottom{display:none}}
+</style>
+</head>
+<body>
+
+<!-- ======================= LOGIN ======================= -->
+<div id="loginScreen">
+  <form class="login-box" id="loginForm">
+    <h1>Smart Farm Sapi</h1>
+    <p>Masuk untuk membuka dashboard monitoring kandang.</p>
+    <div class="err-msg" id="loginErr"></div>
+    <div class="field"><label for="lu">Nama pengguna</label><input id="lu" required autocomplete="username"></div>
+    <div class="field"><label for="lp">Kata sandi</label><input id="lp" type="password" required autocomplete="current-password"></div>
+    <button class="btn-primary" type="submit">Masuk</button>
+  </form>
+</div>
+
+<!-- ======================= APP ======================= -->
+<div id="app">
+  <header>
+    <h1>Smart Farm Sapi</h1>
+    <div class="conn off" id="connIndicator"><span class="dot"></span><span id="connText">Terputus</span></div>
+    <span class="updated tabular" id="lastUpdate">Belum ada data diterima</span>
+    <button class="logout" id="logoutBtn">Keluar</button>
+  </header>
+
+  <div class="layout">
+    <nav class="side" id="sideNav">
+      <button data-view="live" class="active">Live Monitoring</button>
+      <button data-view="stats">Aktivitas & Statistik</button>
+      <button data-view="history">Riwayat Monitoring</button>
+      <button data-view="alerts">Alert Monitoring</button>
+    </nav>
+
+    <main>
+      <!-- LIVE MONITORING -->
+      <section class="view active" id="view-live">
+        <h2 class="section-title">Live Monitoring</h2>
+        <div class="live-grid">
+          <div>
+            <div class="video-wrap" id="videoWrap">
+              <video id="liveVideo" muted playsinline autoplay style="display:none"></video>
+              <canvas id="overlay"></canvas>
+              <div class="video-empty" id="videoEmpty">Belum ada sinyal dari kamera. Pastikan URL stream sudah diisi di konfigurasi.</div>
+            </div>
+            <div class="herd-strip" id="herdStrip">
+              <div class="herd-item">Normal<b class="tabular">-</b></div>
+              <div class="herd-item">Perlu dipantau<b class="tabular">-</b></div>
+              <div class="herd-item">Indikasi stres<b class="tabular">-</b></div>
+            </div>
+          </div>
+          <div class="side-panel">
+            <h3>Sapi terdeteksi</h3>
+            <div id="cowList"><p class="empty">Belum ada sapi terdeteksi.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AKTIVITAS & STATISTIK -->
+      <section class="view" id="view-stats">
+        <h2 class="section-title">Aktivitas & Statistik</h2>
+        <div class="stat-grid">
+          <div class="card">
+            <h3 style="margin:0 0 10px">Perilaku per jam (hari ini)</h3>
+            <canvas id="chartHourly" height="220"></canvas>
+            <p class="empty" id="hourlyEmpty">Belum ada data untuk ditampilkan. Grafik akan terisi setelah kamera mulai mendeteksi.</p>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 10px">Proporsi hari ini</h3>
+            <canvas id="chartDonut" width="220" height="220" style="display:block;margin:0 auto"></canvas>
+            <p class="empty" id="donutEmpty">Belum ada data untuk ditampilkan.</p>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 10px">Ringkasan per sapi</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Track ID</th><th>Durasi duduk</th><th>Durasi berdiri</th><th>% duduk</th><th>Status</th></tr></thead>
+              <tbody id="perCowBody"><tr><td colspan="5" class="empty">Belum ada data untuk ditampilkan.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIWAYAT -->
+      <section class="view" id="view-history">
+        <h2 class="section-title">Riwayat Monitoring</h2>
+        <div class="filters">
+          <input type="text" id="hSearch" placeholder="Cari Track ID">
+          <select id="hBehavior"><option value="">Semua perilaku</option><option value="berdiri">Berdiri</option><option value="duduk">Duduk</option></select>
+          <input type="date" id="hFrom"><input type="date" id="hTo">
+          <button class="btn-ghost" id="hApply">Terapkan</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Waktu</th><th>Track ID</th><th>Perilaku</th><th>Durasi</th><th>Snapshot</th></tr></thead>
+              <tbody id="historyBody"><tr><td colspan="5" class="empty">Belum ada riwayat monitoring.</td></tr></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <button id="pgPrev" disabled>Sebelumnya</button>
+            <span id="pgInfo" class="tabular">Halaman -</span>
+            <button id="pgNext" disabled>Berikutnya</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ALERT -->
+      <section class="view" id="view-alerts">
+        <h2 class="section-title">Alert Monitoring</h2>
+        <div id="alertList"><p class="empty">Belum ada peringatan. Peringatan muncul otomatis jika ada sapi yang terlalu lama berdiri atau jarang duduk.</p></div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="bottom">
+    <button data-view="live" class="active">Live</button>
+    <button data-view="stats">Statistik</button>
+    <button data-view="history">Riwayat</button>
+    <button data-view="alerts">Alert</button>
+  </nav>
+</div>
+
+<!-- Modal detail alert / snapshot -->
+<div class="modal-bg" id="modalBg" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <img id="modalImg" alt="Snapshot sapi" style="display:none">
+    <h3 id="modalTitle">Detail</h3>
+    <dl id="modalBody"></dl>
+    <div class="btn-row">
+      <button class="btn-ghost" id="modalClose">Tutup</button>
+      <button class="btn-ack" id="modalAck" style="display:none">Tandai sudah ditangani</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================================================================
+   KONFIGURASI — sesuaikan dengan alamat backend Anda
+   ====================================================================== */
+const CONFIG = {
+  API_BASE_URL: "http://10.33.109.63:8000",
+  ENDPOINTS: {
+    login:    "/api/login",
+    live:     "/api/live",       // websocket atau polling, lihat LIVE_MODE
+    stats:    "/api/stats",
+    history:  "/api/history",
+    alerts:   "/api/alerts",
+    ackAlert: "/api/alerts/:id/ack"
+  },
+  AUTH_ENABLED: false,           // true = wajib login dulu
+  LIVE_MODE: "polling",          // "websocket" | "polling"
+  POLL_INTERVAL_MS: 3000,
+  VIDEO_STREAM_URL: "",          // contoh: http://10.33.109.63:8889/cctv (HLS/WebRTC) atau MJPEG
+  // Ambang batas status stres (LOGIKA STATUS STRES)
+  STRES: {
+    normalMin: 45,     // % duduk >= 45  -> Normal
+    pantauMin: 30,     // 30-44          -> Perlu dipantau
+    berdiriWaspadaJam: 3,
+    berdiriKritisJam: 5
+  }
+};
+
+/* ======================================================================
+   KONTRAK DATA (format JSON yang diharapkan dari backend)
+   Live:    { timestamp, frame_id, detections:[{track_id,behavior:"berdiri"|"duduk",confidence,bbox:{x,y,w,h}}] }
+   Stats:   { tanggal, per_jam:[{jam,detik_berdiri,detik_duduk}], per_sapi:[{track_id,detik_berdiri,detik_duduk}] }
+   History: { total, halaman, items:[{id,waktu,track_id,behavior,durasi_detik,snapshot_url}] }
+   Alerts:  { items:[{id,waktu,track_id,jenis,tingkat:"info"|"waspada"|"kritis",dibaca,ditangani,snapshot_url,keterangan}] }
+   ====================================================================== */
+
+/* ======================================================================
+   STATE (tanpa localStorage — semua di memori)
+   ====================================================================== */
+const state = {
+  liveDetections: [],
+  cowSince: {},        // track_id -> {behavior, sejak: Date}
+  statsData: null,
+  historyItems: [], historyTotal: 0, historyPage: 1, historyPageSize: 10,
+  alerts: [],
+  pollTimer: null, ws: null, retryDelay: 2000, connected: false,
+  lastUpdate: null
+};
+
+/* ======================================================================
+   LOGIKA STATUS STRES
+   ====================================================================== */
+function statusDariPersen(pctDuduk, cukupData){
+  if(!cukupData || pctDuduk === null || pctDuduk === undefined) return "Data belum cukup";
+  if(pctDuduk >= CONFIG.STRES.normalMin) return "Normal";
+  if(pctDuduk >= CONFIG.STRES.pantauMin) return "Perlu Dipantau";
+  return "Indikasi Stres";
+}
+function kelasStatus(s){
+  return s==="Normal"?"status-normal":s==="Perlu Dipantau"?"status-pantau":s==="Indikasi Stres"?"status-stres":"";
+}
+
+/* ======================================================================
+   LAPISAN DATA (koneksi ke backend)
+   ====================================================================== */
+function setConn(mode, text){
+  const el = document.getElementById('connIndicator');
+  el.className = 'conn ' + mode;
+  document.getElementById('connText').textContent = text;
+}
+function markUpdated(){
+  state.lastUpdate = new Date();
+  document.getElementById('lastUpdate').textContent = "Data terakhir: " + state.lastUpdate.toLocaleTimeString('id-ID');
+}
+
+async function apiFetch(path, opts){
+  const r = await fetch(CONFIG.API_BASE_URL + path, opts);
+  if(!r.ok) throw new Error("Server merespons status " + r.status);
+  return r.json();
+}
+
+async function login(username, password){
+  const errEl = document.getElementById('loginErr');
+  errEl.classList.remove('show');
+  try{
+    await apiFetch(CONFIG.ENDPOINTS.login, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({username, password})
+    });
+    showApp();
+  }catch(e){
+    errEl.textContent = "Login gagal: " + (e.message || "server tidak terjangkau.");
+    errEl.classList.add('show');
+  }
+}
+
+function connectLive(){
+  if(CONFIG.LIVE_MODE === "websocket"){
+    try{
+      const wsUrl = CONFIG.API_BASE_URL.replace(/^http/,'ws') + CONFIG.ENDPOINTS.live;
+      state.ws = new WebSocket(wsUrl);
+      state.ws.onopen = () => { state.connected = true; state.retryDelay = 2000; setConn('on','Terhubung'); };
+      state.ws.onmessage = (ev) => { try{ onLiveData(JSON.parse(ev.data)); }catch(e){} };
+      state.ws.onclose = () => { state.connected = false; setConn('off','Terputus'); scheduleWsRetry(); };
+      state.ws.onerror = () => { state.ws.close(); };
+    }catch(e){ scheduleWsRetry(); }
+  } else {
+    pollLive();
+  }
+}
+function scheduleWsRetry(){
+  setConn('retry','Menyambung ulang...');
+  setTimeout(connectLive, state.retryDelay);
+  state.retryDelay = Math.min(state.retryDelay * 1.6, 30000);
+}
+async function pollLive(){
+  try{
+    const data = await apiFetch(CONFIG.ENDPOINTS.live);
+    onLiveData(data);
+    state.connected = true; state.retryDelay = CONFIG.POLL_INTERVAL_MS;
+    setConn('on','Terhubung');
+  }catch(e){
+    state.connected = false;
+    setConn('retry','Menyambung ulang...');
+  }
+  clearTimeout(state.pollTimer);
+  state.pollTimer = setTimeout(pollLive, state.retryDelay);
+}
+function onLiveData(data){
+  if(!data || !Array.isArray(data.detections)) return;
+  state.liveDetections = data.detections;
+  const now = new Date();
+  data.detections.forEach(d=>{
+    const prev = state.cowSince[d.track_id];
+    if(!prev || prev.behavior !== d.behavior) state.cowSince[d.track_id] = {behavior:d.behavior, sejak:now};
+  });
+  markUpdated();
+  renderOverlay();
+  renderCowList();
+}
+
+async function fetchStats(){
+  try{
+    state.statsData = await apiFetch(CONFIG.ENDPOINTS.stats);
+    renderCharts(); renderPerCowTable();
+  }catch(e){
+    document.getElementById('hourlyEmpty').textContent = "Gagal memuat data: " + e.message;
+    document.getElementById('donutEmpty').textContent = "Gagal memuat data: " + e.message;
+  }
+}
+async function fetchHistory(){
+  const q = new URLSearchParams({
+    q: document.getElementById('hSearch').value.trim(),
+    behavior: document.getElementById('hBehavior').value,
+    dari: document.getElementById('hFrom').value,
+    sampai: document.getElementById('hTo').value,
+    halaman: state.historyPage,
+    ukuran: state.historyPageSize
+  });
+  try{
+    const data = await apiFetch(CONFIG.ENDPOINTS.history + "?" + q.toString());
+    state.historyItems = data.items || []; state.historyTotal = data.total || 0;
+    renderHistory();
+  }catch(e){
+    document.getElementById('historyBody').innerHTML =
+      '<tr><td colspan="5" class="empty">Gagal memuat riwayat: '+e.message+'</td></tr>';
+  }
+}
+async function fetchAlerts(){
+  try{
+    const data = await apiFetch(CONFIG.ENDPOINTS.alerts);
+    state.alerts = data.items || [];
+    renderAlerts();
+  }catch(e){
+    document.getElementById('alertList').innerHTML = '<p class="empty">Gagal memuat peringatan: '+e.message+'</p>';
+  }
+}
+async function ackAlert(id){
+  try{
+    await apiFetch(CONFIG.ENDPOINTS.ackAlert.replace(':id', id), {method:"POST"});
+    const a = state.alerts.find(x=>x.id===id); if(a){ a.ditangani = true; a.dibaca = true; }
+    renderAlerts(); closeModal();
+  }catch(e){ alert("Gagal menandai: " + e.message); }
+}
+
+/* ======================================================================
+   RENDER OVERLAY LIVE
+   ====================================================================== */
+function renderOverlay(){
+  const wrap = document.getElementById('videoWrap');
+  const cv = document.getElementById('overlay');
+  const empty = document.getElementById('videoEmpty');
+  const video = document.getElementById('liveVideo');
+  if(CONFIG.VIDEO_STREAM_URL && video.src !== CONFIG.VIDEO_STREAM_URL){
+    video.src = CONFIG.VIDEO_STREAM_URL; video.style.display='block'; empty.style.display='none';
+  }
+  if(!CONFIG.VIDEO_STREAM_URL){ empty.style.display='flex'; }
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  state.liveDetections.forEach(d=>{
+    const b = d.bbox; if(!b) return;
+    const x=b.x*w, y=b.y*h, bw=b.w*w, bh=b.h*h;
+    const color = d.behavior === 'duduk' ? '#3F6E92' : '#3F7D3F';
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.strokeRect(x,y,bw,bh);
+    const label = "ID "+d.track_id+" - "+(d.behavior==='duduk'?'Duduk':'Berdiri')+
+      (d.confidence!=null?" ("+Math.round(d.confidence*100)+"%)":"");
+    ctx.font = "13px Segoe UI, sans-serif";
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = color; ctx.fillRect(x, Math.max(0,y-18), tw+8, 18);
+    ctx.fillStyle = "#fff"; ctx.fillText(label, x+4, Math.max(12,y-5));
+  });
+}
+function renderCowList(){
+  const el = document.getElementById('cowList');
+  if(!state.liveDetections.length){ el.innerHTML = '<p class="empty">Belum ada sapi terdeteksi.</p>'; }
+  else{
+    el.innerHTML = state.liveDetections.map(d=>{
+      const since = state.cowSince[d.track_id];
+      const durasi = since ? formatDurasi((Date.now()-since.sejak)/1000) : '-';
+      return `<div class="cow-row"><span>ID ${d.track_id}</span>
+        <span class="tag ${d.behavior}">${d.behavior==='duduk'?'Duduk':'Berdiri'}</span>
+        <span class="tabular">${durasi}</span></div>`;
+    }).join('');
+  }
+  const normal = Object.values(state.cowSince).length ? countHerdStatus() : null;
+  const strip = document.getElementById('herdStrip').children;
+  strip[0].querySelector('b').textContent = normal ? normal.normal : '-';
+  strip[1].querySelector('b').textContent = normal ? normal.pantau : '-';
+  strip[2].querySelector('b').textContent = normal ? normal.stres : '-';
+}
+function countHerdStatus(){
+  // Perkiraan kondisi kawanan berbasis data statistik per sapi bila tersedia
+  let normal=0, pantau=0, stres=0;
+  const rows = (state.statsData && state.statsData.per_sapi) || [];
+  rows.forEach(r=>{
+    const total = r.detik_berdiri + r.detik_duduk;
+    const pct = total>0 ? (r.detik_duduk/total*100) : null;
+    const s = statusDariPersen(pct, total>0);
+    if(s==="Normal") normal++; else if(s==="Perlu Dipantau") pantau++; else if(s==="Indikasi Stres") stres++;
+  });
+  return {normal,pantau,stres};
+}
+function formatDurasi(detik){
+  detik = Math.floor(detik);
+  const j = Math.floor(detik/3600), m = Math.floor((detik%3600)/60), d = detik%60;
+  if(j>0) return `${j}j ${m}m`;
+  if(m>0) return `${m}m ${d}d`;
+  return `${d}d`;
+}
+
+/* ======================================================================
+   RENDER GRAFIK (canvas, tanpa library)
+   ====================================================================== */
+function renderCharts(){
+  const perJam = state.statsData?.per_jam || [];
+  const perSapi = state.statsData?.per_sapi || [];
+  document.getElementById('hourlyEmpty').style.display = perJam.length ? 'none' : 'block';
+  document.getElementById('donutEmpty').style.display = perSapi.length ? 'none' : 'block';
+  if(perJam.length) drawHourly(perJam);
+  if(perSapi.length) drawDonut(perSapi);
+}
+function drawHourly(rows){
+  const cv = document.getElementById('chartHourly');
+  cv.width = cv.parentElement.clientWidth - 4;
+  const ctx = cv.getContext('2d'); const w=cv.width, h=cv.height;
+  ctx.clearRect(0,0,w,h);
+  const max = Math.max(1, ...rows.map(r=>r.detik_berdiri+r.detik_duduk));
+  const bw = w/rows.length;
+  ctx.strokeStyle = '#D6E0D8'; ctx.beginPath(); ctx.moveTo(0,h-20); ctx.lineTo(w,h-20); ctx.stroke();
+  rows.forEach((r,i)=>{
+    const x = i*bw+4;
+    const hDuduk = (r.detik_duduk/max)*(h-30);
+    const hBerdiri = (r.detik_berdiri/max)*(h-30);
+    ctx.fillStyle = '#3F6E92'; ctx.fillRect(x, h-20-hDuduk, bw-8, hDuduk);
+    ctx.fillStyle = '#3F7D3F'; ctx.fillRect(x, h-20-hDuduk-hBerdiri, bw-8, hBerdiri);
+    if(i%2===0){ ctx.fillStyle='#5B6B62'; ctx.font='10px sans-serif'; ctx.fillText(r.jam+':00', x, h-6); }
+  });
+}
+function drawDonut(rows){
+  const cv = document.getElementById('chartDonut');
+  const ctx = cv.getContext('2d'); const cx=110, cy=110, r=90, r2=55;
+  ctx.clearRect(0,0,220,220);
+  let duduk=0, berdiri=0;
+  rows.forEach(r_=>{ duduk+=r_.detik_duduk; berdiri+=r_.detik_berdiri; });
+  const total = duduk+berdiri || 1;
+  let start = -Math.PI/2;
+  [['#3F6E92',duduk],['#3F7D3F',berdiri]].forEach(([color,val])=>{
+    const slice = (val/total)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,start+slice); ctx.closePath();
+    ctx.fillStyle = color; ctx.fill(); start += slice;
+  });
+  ctx.globalCompositeOperation='destination-out';
+  ctx.beginPath(); ctx.arc(cx,cy,r2,0,Math.PI*2); ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='#1B2622'; ctx.font='bold 20px Georgia, serif'; ctx.textAlign='center';
+  ctx.fillText(Math.round(duduk/total*100)+'%', cx, cy+7);
+  ctx.font='11px sans-serif'; ctx.fillStyle='#5B6B62'; ctx.fillText('duduk', cx, cy+22);
+  ctx.textAlign='left';
+}
+function renderPerCowTable(){
+  const rows = state.statsData?.per_sapi || [];
+  const body = document.getElementById('perCowBody');
+  if(!rows.length){ body.innerHTML = '<tr><td colspan="5" class="empty">Belum ada data untuk ditampilkan.</td></tr>'; return; }
+  body.innerHTML = rows.map(r=>{
+    const total = r.detik_berdiri + r.detik_duduk;
+    const pct = total>0 ? (r.detik_duduk/total*100) : null;
+    const status = statusDariPersen(pct, total>0);
+    return `<tr><td>ID ${r.track_id}</td><td class="tabular">${formatDurasi(r.detik_duduk)}</td>
+      <td class="tabular">${formatDurasi(r.detik_berdiri)}</td>
+      <td class="tabular">${pct!=null?Math.round(pct)+'%':'-'}</td>
+      <td><span class="status-badge ${kelasStatus(status)}">${status}</span></td></tr>`;
+  }).join('');
+}
+
+/* ======================================================================
+   RIWAYAT (tabel + filter + pagination)
+   ====================================================================== */
+function renderHistory(){
+  const body = document.getElementById('historyBody');
+  if(!state.historyItems.length){ body.innerHTML = '<tr><td colspan="5" class="empty">Belum ada riwayat monitoring.</td></tr>'; }
+  else{
+    body.innerHTML = state.historyItems.map(it=>`
+      <tr><td class="tabular">${it.waktu}</td><td>ID ${it.track_id}</td>
+      <td>${it.behavior==='duduk'?'Duduk':'Berdiri'}</td><td class="tabular">${formatDurasi(it.durasi_detik)}</td>
+      <td>${it.snapshot_url?`<img class="thumb" src="${it.snapshot_url}" data-snap='${JSON.stringify(it)}' alt="Snapshot sapi ID ${it.track_id}">`:'-'}</td></tr>
+    `).join('');
+    body.querySelectorAll('.thumb').forEach(img=>{
+      img.addEventListener('click', ()=> openSnapshotModal(JSON.parse(img.dataset.snap)));
+    });
+  }
+  const totalPages = Math.max(1, Math.ceil(state.historyTotal/state.historyPageSize));
+  document.getElementById('pgInfo').textContent = `Halaman ${state.historyPage} dari ${totalPages}`;
+  document.getElementById('pgPrev').disabled = state.historyPage<=1;
+  document.getElementById('pgNext').disabled = state.historyPage>=totalPages;
+}
+function openSnapshotModal(it){
+  document.getElementById('modalTitle').textContent = 'Detail riwayat';
+  document.getElementById('modalImg').src = it.snapshot_url; document.getElementById('modalImg').style.display='block';
+  document.getElementById('modalBody').innerHTML = `
+    <dt>Waktu</dt><dd>${it.waktu}</dd><dt>Track ID</dt><dd>ID ${it.track_id}</dd>
+    <dt>Perilaku</dt><dd>${it.behavior==='duduk'?'Duduk':'Berdiri'}</dd>
+    <dt>Durasi</dt><dd>${formatDurasi(it.durasi_detik)}</dd>`;
+  document.getElementById('modalAck').style.display='none';
+  document.getElementById('modalBg').classList.add('show');
+}
+
+/* ======================================================================
+   ALERT
+   ====================================================================== */
+function renderAlerts(){
+  const el = document.getElementById('alertList');
+  if(!state.alerts.length){ el.innerHTML = '<p class="empty">Belum ada peringatan. Peringatan muncul otomatis jika ada sapi yang terlalu lama berdiri atau jarang duduk.</p>'; return; }
+  el.innerHTML = state.alerts.map(a=>`
+    <button class="alert-row ${a.dibaca?'':'unread'}" data-id="${a.id}">
+      <span class="lv lv-${a.tingkat}">${a.tingkat}</span>
+      <span class="alert-txt">${a.jenis}<small>ID ${a.track_id} — ${a.waktu}${a.ditangani?' — sudah ditangani':''}</small></span>
+    </button>`).join('');
+  el.querySelectorAll('.alert-row').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const a = state.alerts.find(x=>String(x.id)===btn.dataset.id);
+      a.dibaca = true; renderAlerts(); openAlertModal(a);
+    });
+  });
+}
+function openAlertModal(a){
+  document.getElementById('modalTitle').textContent = 'Detail dan snapshot';
+  const img = document.getElementById('modalImg');
+  if(a.snapshot_url){ img.src=a.snapshot_url; img.style.display='block'; } else { img.style.display='none'; }
+  document.getElementById('modalBody').innerHTML = `
+    <dt>Track ID</dt><dd>ID ${a.track_id}</dd><dt>Jenis</dt><dd>${a.jenis}</dd>
+    <dt>Tingkat</dt><dd>${a.tingkat}</dd><dt>Waktu</dt><dd>${a.waktu}</dd>
+    <dt>Keterangan</dt><dd>${a.keterangan||'-'}</dd>`;
+  const ackBtn = document.getElementById('modalAck');
+  ackBtn.style.display = a.ditangani ? 'none' : 'inline-block';
+  ackBtn.onclick = ()=> ackAlert(a.id);
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+
+/* ======================================================================
+   NAVIGASI
+   ====================================================================== */
+function switchView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id === 'view-'+name));
+  document.querySelectorAll('nav button[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+  if(name==='stats') fetchStats();
+  if(name==='history') fetchHistory();
+  if(name==='alerts') fetchAlerts();
+}
+document.querySelectorAll('nav button[data-view]').forEach(b=>{
+  b.addEventListener('click', ()=> switchView(b.dataset.view));
+});
+
+/* ======================================================================
+   INISIALISASI
+   ====================================================================== */
+function showApp(){
+  document.getElementById('loginScreen').classList.remove('show');
+  document.getElementById('app').classList.add('show');
+  connectLive();
+  window.addEventListener('resize', renderOverlay);
+}
+document.getElementById('loginForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  login(document.getElementById('lu').value, document.getElementById('lp').value);
+});
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  clearTimeout(state.pollTimer); if(state.ws) state.ws.close();
+  document.getElementById('app').classList.remove('show');
+  if(CONFIG.AUTH_ENABLED) document.getElementById('loginScreen').classList.add('show');
+});
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+document.getElementById('hApply').addEventListener('click', ()=>{ state.historyPage=1; fetchHistory(); });
+document.getElementById('pgPrev').addEventListener('click', ()=>{ if(state.historyPage>1){ state.historyPage--; fetchHistory(); } });
+document.getElementById('pgNext').addEventListener('click', ()=>{ state.historyPage++; fetchHistory(); });
+
+if(CONFIG.AUTH_ENABLED){ document.getElementById('loginScreen').classList.add('show'); }
+else { showApp(); }
+</script>
+</body>
+</html>

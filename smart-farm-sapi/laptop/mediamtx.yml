@@ -1,0 +1,17 @@
+# MediaMTX di laptop: tarik RTSP dari Tapo C200 lalu forward ke MediaMTX VPS
+logLevel: info
+rtsp: yes
+rtspAddress: :8554
+webrtc: no
+hls: no
+
+paths:
+  cctv:
+    # Buat akun kamera dulu di app Tapo: Pengaturan > Lanjutan > Akun Kamera
+    source: rtsp://USER_KAMERA:PASS_KAMERA@IP_TAPO:554/stream1
+    sourceOnDemand: no
+    # Begitu stream siap, dorong ke VPS (auto-restart jika putus)
+    runOnReady: >
+      ffmpeg -loglevel warning -rtsp_transport tcp -i rtsp://localhost:$RTSP_PORT/$MTX_PATH
+      -c copy -f rtsp -rtsp_transport tcp rtsp://laptop:GANTI_PASSWORD_PUBLISH@10.33.109.63:8554/cctv
+    runOnReadyRestart: yes
