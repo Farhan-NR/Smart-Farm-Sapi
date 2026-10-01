@@ -33,6 +33,8 @@ with db() as c:
 app = FastAPI(title="Cow Monitoring API")
 app.mount("/photos", StaticFiles(directory=PHOTO_DIR), name="photos")
 
+DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "dashboard"
+
 def auth(x_api_key: str = Header(default="")):
     if x_api_key != API_KEY:
         raise HTTPException(401, "API key salah")
@@ -95,7 +97,16 @@ def latest():
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard():
-    return f"""<!doctype html><meta charset=utf-8><title>Monitoring Sapi</title>
+    """Menyajikan dashboard utama (dashboard/index.html)."""
+    f = DASHBOARD_DIR / "index.html"
+    if f.exists():
+        return f.read_text(encoding="utf-8")
+    return "<h2>dashboard/index.html belum ditemukan di server.</h2>"
+
+@app.get("/legacy", response_class=HTMLResponse)
+def legacy_dashboard():
+    """Dashboard sederhana cadangan (tabel log + video), tidak dipakai default."""
+    return f"""<!doctype html><meta charset=utf-8><title>Monitoring Sapi (legacy)</title>
 <style>body{{font-family:sans-serif;margin:16px}}table{{border-collapse:collapse;width:100%}}
 td,th{{border:1px solid #ccc;padding:6px}}.a{{background:#ffe0e0}}img{{height:48px}}</style>
 <h2>Monitoring Sapi</h2>
